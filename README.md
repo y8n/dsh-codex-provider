@@ -15,13 +15,26 @@
 > | 改动 | 原因 |
 > |---|---|
 > | `peerDependencies` 全部改为 `^0.2.0-rc.2`，删掉 0.2 已不存在的 `@deepseek-ai/dsh-client-runtime`、`@deepseek-ai/dsh-client-web-react` | 版本栅栏按运行时版本逐条比对 peer 范围，旧范围必然被拒 |
+> | client 侧 Remote 描述符的 `result` 从 `{ mode: "strict", typeSymbol, schema }` 改为 `{ mode: "src-json" }` | **0.2 的 `typert.remotes.register()` 只接受 `{mode:"strict", typeSymbol, create()}` 或 `{mode:"src-json"}`；旧写法抛 `strict codec has no create() factory`** |
+> | `apply()` 里的 `$mount` / UI 装配全部 try/catch，失败只 `console.error` 不抛出 | DSH 的 web boot 审计把「client entry 失败」当致命错误，恢复流程会**禁用 profile 里全部第三方 bundle**（见下） |
 > | `settings.get(ns)` → `settings.describe()` | DSH 0.2 的 settings 缝只剩 `describe()/update()/replace()/mutate()`，`get()` 已移除 |
 > | `<Pill tone>` → `<Pill active>` | 0.2 的 primitives `Pill` 只有 `{ active, className, onClick }` |
 > | `Button variant="secondary"/"danger"` → `"outline"` + 危险色内联样式 | 0.2 的 `Button` 只认 `ghost / outline / primary` |
 > | 主题变量改用 `--dsw-alias-state-error-primary` / `--dsw-alias-state-success-primary` | 旧变量在新主题里已不是规范名 |
 >
-> 除此之外的 OAuth、凭证、令牌刷新逻辑与上游一致（0.2 的 `ctx.credentials.resolve/set/unset`
-> 与 `Remote` 装饰器协议没有破坏性变更，已用真实 0.2.0-rc.2 运行时包验证）。
+> ### 一次真实事故（2026-10-02）
+>
+> 只改 peer 范围、没改描述符就装上 DSH 桌面端 0.2.0-rc.2，重启后应用直接进
+> **致命恢复流程**：`~/Library/Logs/DeepSeek Harness/crash-*.log` 记录
+> `web boot: 1 entry did not activate / dsh-codex-provider: failed`，
+> 恢复动作把 `dsh.profile.bundles` 清成只剩 `dsh-base` + `dsh-web-app`，
+> 并把用户自己的 `cordis.patch.yml` 备份后替换成模板 —— **该 profile 下所有第三方插件一起失效**。
+>
+> 根因就在上面第二行：`DescriptorStore.validate → validateInvocation → validateCodec`。
+> 这个 fork 除了修 codec，还给 `apply()` 加了兜底，让同类问题退化为「设置里看不到分区」
+> 而不是整机插件团灭。改动经过 DSH 0.2.0-rc.2 真实 `remote.$mount()` 代码路径验证。
+>
+> 除此之外的 OAuth、凭证、令牌刷新逻辑与上游一致。
 >
 > 上游推荐的替代方案 [Magpie](https://github.com/yetone/magpie) 仍然可用，且不需要改配置文件；
 > 如果你更想要一个装好即用的本地网关，请看上游 README 的存档段落。
