@@ -1,28 +1,30 @@
 # dsh-codex-provider
 
 > [!IMPORTANT]
-> **本项目已停止维护，不再更新。** 最后更新：2026-08-13。
+> **这是 [Hu9956/dsh-codex-provider](https://github.com/Hu9956/dsh-codex-provider) 的 fork，只为把它跑在 DSH `0.2.0-rc.2` 上。**
 >
-> 它只解决一件事：把 ChatGPT 订阅额度用在 DSH 上。这件事现在有更好的做法。
+> 上游已于 2026-08-13 停止维护，并且它的 `peerDependencies` 锁在 `^0.1.0-rc.6`，
+> 在 DSH 0.2 上安装时会被插件管理器直接拒绝：
 >
-> ## 推荐改用 [Magpie](https://github.com/yetone/magpie)
+> ```
+> Plugin dsh-codex-provider@0.1.0 is incompatible with dsh 0.2.0-rc.2
+> ```
 >
-> 一步到位，不用改任何配置文件。装上 Magpie、用 ChatGPT 登录一次，Codex 的模型就会出现在 DSH 的模型列表里。
+> 本 fork 的改动（均在 `lib/` 与 `package.json`）：
 >
-> - **一个界面管所有 AI 工具**：Claude Code、Codex、OpenCode、Cursor、Cline、Qoder……都在菜单栏里点一下就换。
-> - **登录过的订阅直接变成供应商**：ChatGPT、Claude Code、Copilot、Devin、Qoder 的订阅，其它工具都能用——不只是 Codex。
-> - 自带本地网关（`127.0.0.1:3425`），OpenAI / Anthropic / Gemini 三套 API 都能说，DSH 直接接。
-> - DSH 是它管理的 agent 之一：把模型选成 `codex/` 开头的任一模型即可。
-> - 模型列表跟着厂商自动刷新；多账号可按额度智能分配，还能给模型定价看花费。
+> | 改动 | 原因 |
+> |---|---|
+> | `peerDependencies` 全部改为 `^0.2.0-rc.2`，删掉 0.2 已不存在的 `@deepseek-ai/dsh-client-runtime`、`@deepseek-ai/dsh-client-web-react` | 版本栅栏按运行时版本逐条比对 peer 范围，旧范围必然被拒 |
+> | `settings.get(ns)` → `settings.describe()` | DSH 0.2 的 settings 缝只剩 `describe()/update()/replace()/mutate()`，`get()` 已移除 |
+> | `<Pill tone>` → `<Pill active>` | 0.2 的 primitives `Pill` 只有 `{ active, className, onClick }` |
+> | `Button variant="secondary"/"danger"` → `"outline"` + 危险色内联样式 | 0.2 的 `Button` 只认 `ghost / outline / primary` |
+> | 主题变量改用 `--dsw-alias-state-error-primary` / `--dsw-alias-state-success-primary` | 旧变量在新主题里已不是规范名 |
 >
-> 官网与下载：<https://usemagpie.ai>　源码：<https://github.com/yetone/magpie>（MIT）
+> 除此之外的 OAuth、凭证、令牌刷新逻辑与上游一致（0.2 的 `ctx.credentials.resolve/set/unset`
+> 与 `Remote` 装饰器协议没有破坏性变更，已用真实 0.2.0-rc.2 运行时包验证）。
 >
-> **迁移三步**
-> 1. 安装 Magpie（macOS / Windows / Linux）：<https://usemagpie.ai>，或 `curl -fsSL https://usemagpie.ai/install.sh | sh`
-> 2. 在 Magpie 里登录你的 ChatGPT 账号
-> 3. Agents 里找到 DeepSeek Harness，把模型选成 `codex/…`
->
-> 以下内容作为存档保留。已安装本插件的用户可以继续使用，不受 Magpie 影响。
+> 上游推荐的替代方案 [Magpie](https://github.com/yetone/magpie) 仍然可用，且不需要改配置文件；
+> 如果你更想要一个装好即用的本地网关，请看上游 README 的存档段落。
 
 DeepSeek Harness (DSH) 供应商插件：**OpenAI Codex（ChatGPT Plus/Pro 订阅）** 的设备码 OAuth 登录、令牌自动刷新与供应商管理。
 
@@ -43,19 +45,25 @@ DeepSeek Harness (DSH) 供应商插件：**OpenAI Codex（ChatGPT Plus/Pro 订�
 
 ## 📦 安装
 
+从本 fork 的 GitHub 源码安装（推荐，`desktop` 是 DSH 桌面端使用的 profile）：
+
 ```bash
-dsh plugin --profile web add dsh-codex-provider
+dsh plugin --profile desktop add github:y8n/dsh-codex-provider
+```
+
+也可以本地目录方式安装（`pnpm` 会建立链接，改完代码重启即可生效）：
+
+```bash
+dsh plugin --profile desktop add /绝对路径/dsh-codex-provider
 ```
 
 插件包自带 DSH bundle 配置，安装时会自动加入 profile，无需手动编辑 `cordis.patch.yml`。
+桌面端也可以直接在 **设置 → 插件** 里用上面的 spec 安装。
 
-重启 dsh web 服务（Ctrl+C 后重新运行启动命令），刷新页面即可在 **设置 → 供应商** 看到入口。
+安装后需要重启 DSH 桌面端（关闭并重新打开 App），刷新页面即可在 **设置 → 供应商** 看到入口。
 
-也可以从 GitHub 安装当前源码版本：
-
-```bash
-dsh plugin --profile web add github:Hu9956/dsh-codex-provider
-```
+> 注意：上游 npm 上的 `dsh-codex-provider@0.1.0` 仍是旧版本，peer 范围锁在 `^0.1.0-rc.6`，
+> 在 DSH 0.2 上会被插件管理器判定为 `incompatible-version` 而拒绝安装。
 
 ## 🚀 使用
 
@@ -80,7 +88,7 @@ dsh plugin --profile web add github:Hu9956/dsh-codex-provider
 
 - **与 Codex CLI 共享同一 OAuth 会话**：任一侧刷新令牌后，另一侧持有的旧 refresh token 可能失效（届时在 Codex CLI 侧重新 `codex login` 即可）
 - **不需要 API Key**：本插件消费的是 ChatGPT 订阅额度，不是 OpenAI API 计费
-- 需要 DSH `>= 0.1.0-rc.6`
+- 需要 DSH `>= 0.2.0-rc.2`
 - 可用模型由当前 DSH 版本和 OpenAI 账户权限决定
 
 ## 🔒 安全与隐私
@@ -91,7 +99,9 @@ dsh plugin --profile web add github:Hu9956/dsh-codex-provider
 
 ## 兼容性
 
-当前版本针对 `@deepseek-ai/dsh 0.1.0-rc.6` 和 Node.js 22 验证。DSH 尚处于 RC 阶段，后续版本若调整插件接口，本插件也可能需要同步升级。
+当前版本针对 `@deepseek-ai/dsh 0.2.0-rc.2`（DSH 桌面端 0.2.0-rc.2 / Node.js 24 运行时）验证。
+DSH 尚处于 RC 阶段，`0.2.x` 内的接口若再调整，本插件也需要同步升级；`0.1.x` 已不再作为目标版本
+（`settings.get()` 在 0.2 被移除，代码里保留了回退分支，但 UI 与 peer 范围按 0.2 收敛）。
 
 ## 🛠️ 开发
 
